@@ -1,4 +1,5 @@
 use crate::parse::read;
+use crate::HandType::{FiveKind, FourKind, FullHouse, HighCard, OnePair, ThreeKind, TwoPair};
 use itertools::Itertools;
 use std::cmp::Ordering;
 use std::panic;
@@ -68,9 +69,9 @@ fn parse_cards(chars: CharCards, jay: Card) -> Hand {
     )
 }
 fn rate_hand(hand: &Hand) -> HandType {
-    let counts = hand.iter().counts();
-    let jokers = *counts.get(&Card::Joker).unwrap_or(&0);
-    let remaining: Vec<usize> = counts
+    let remaining: Vec<usize> = hand
+        .iter()
+        .counts()
         .into_iter()
         .filter_map(|(&card, count)| match card {
             Card::Joker => None,
@@ -79,44 +80,13 @@ fn rate_hand(hand: &Hand) -> HandType {
         .sorted()
         .rev()
         .collect_vec();
-    match jokers {
-        5 | 4 => HandType::FiveKind,
-        3 => match remaining.len() {
-            1 => HandType::FiveKind, // Pair + three Jokers
-            2 => HandType::FourKind, // Distinct + three Jokers
-            _ => panic!("Invalid combo with 3 jokers"),
-        },
-        2 => match remaining[0] {
-            3 => HandType::FiveKind,  //Three + two jokers
-            2 => HandType::FourKind,  // Pair + two jokers
-            1 => HandType::ThreeKind, // Distinct + two jokers
-            _ => panic!("Invalid combo with 2 jokers"),
-        },
-        1 => match remaining[0] {
-            4 => HandType::FiveKind, // Four + one Joker => Five!
-            3 => HandType::FourKind, // Three + Joker = four
-            2 => match remaining[1] {
-                // Pair + ?
-                2 => HandType::FullHouse, // Two Pair + joker => full House
-                1 => HandType::ThreeKind,
-                _ => panic!("Invalid combo with 1 joker"),
-            },
-            1 => HandType::OnePair, // Distinct + 1 joker => Pair
-            _ => panic!("Invalid combo with 1 joker"),
-        },
-        0 => match remaining[0] {
-            // No jokers besides the one between keyboard and chair
-            5 => HandType::FiveKind,
-            4 => HandType::FourKind,
-            first => match (first, remaining[1]) {
-                (3, 2) => HandType::FullHouse,
-                (3, 1) => HandType::ThreeKind,
-                (2, 2) => HandType::TwoPair,
-                (2, 1) => HandType::OnePair,
-                _ => HandType::HighCard,
-            },
-        },
-        _ => panic!("Invalid combo"),
+    match remaining.len() {
+        0 | 1 => FiveKind,
+        2 => HandType::from((remaining[0], remaining[1])),
+        3 => HandType::from((remaining[0], remaining[1], remaining[2])),
+        4 => OnePair,
+        5 => HighCard,
+        _ => panic!("Invalid Hand"),
     }
 }
 #[derive(Debug, Eq, PartialEq)]
@@ -212,6 +182,29 @@ enum HandType {
     FullHouse,
     FourKind,
     FiveKind,
+}
+impl From<(usize, usize)> for HandType {
+    fn from(remaining: (usize, usize)) -> Self {
+        match remaining {
+            (3, 2) => FullHouse,
+            (3, 1) => FourKind,
+            (2, 2) => FullHouse,
+            (2, 1) => FourKind,
+            (1, 1) => FourKind,
+            _ => panic!("Invalid Hand"),
+        }
+    }
+}
+impl From<(usize, usize, usize)> for HandType {
+    fn from(remaining: (usize, usize, usize)) -> Self {
+        match remaining {
+            (3, 1, 1) => ThreeKind,
+            (2, 2, 1) => TwoPair,
+            (2, 1, 1) => ThreeKind,
+            (1, 1, 1) => ThreeKind,
+            _ => panic!("Invalid Hand"),
+        }
+    }
 }
 mod parse {
     use crate::CharCards;
