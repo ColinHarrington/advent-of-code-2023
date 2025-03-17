@@ -186,6 +186,7 @@ enum HandType {
 impl From<(usize, usize)> for HandType {
     fn from(remaining: (usize, usize)) -> Self {
         match remaining {
+            (4, 1) => FourKind,
             (3, 2) => FullHouse,
             (3, 1) => FourKind,
             (2, 2) => FullHouse,
