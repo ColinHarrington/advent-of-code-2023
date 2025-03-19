@@ -5,7 +5,7 @@ advent_of_code::solution!(8);
 
 pub fn part_one(input: &str) -> Option<u64> {
     let (instructions, nodes) = read(input);
-    let node_map: BTreeMap<&str, (&str, &str)> = BTreeMap::from_iter(nodes.into_iter());
+    let node_map: BTreeMap<&str, (&str, &str)> = BTreeMap::from_iter(nodes);
 
     let mut current = "AAA";
     let mut itr = instructions.iter().cycle();
