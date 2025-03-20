@@ -1,4 +1,6 @@
 use crate::parse::read;
+use itertools::Itertools;
+use num::integer::lcm;
 use std::collections::BTreeMap;
 
 advent_of_code::solution!(8);
@@ -21,8 +23,41 @@ pub fn part_one(input: &str) -> Option<u64> {
     Some(steps)
 }
 
-pub fn part_two(_input: &str) -> Option<u64> {
-    None
+pub fn part_two(input: &str) -> Option<u64> {
+    //This one is going to be a LCM, Modulo solution -> Brute force would take FOREVER!!
+    let (instructions, nodes) = read(input);
+    let node_map: BTreeMap<&str, (&str, &str)> = BTreeMap::from_iter(nodes);
+    let starts = node_map
+        .keys()
+        .filter_map(|&key| match key.ends_with('A') {
+            true => Some(key),
+            false => None,
+        })
+        .collect_vec();
+    let mut heads = starts.clone(); //iter().map(|&s| (s, s)).collect_vec();
+    let mut counts: Vec<usize> = vec![]; //HashMap<&str, (&str, usize)> = HashMap::new();
+    let mut itr = instructions.iter().cycle();
+    let mut steps: usize = 0;
+
+    while !heads.is_empty() {
+        let instruction = itr.next().unwrap();
+        steps += 1;
+        heads = heads
+            .into_iter()
+            .map(|current| match instruction {
+                Instruction::Left => node_map[current].0,
+                Instruction::Right => node_map[current].1,
+            })
+            .filter(|next| match next.ends_with('Z') {
+                true => {
+                    counts.push(steps);
+                    false
+                }
+                false => true,
+            })
+            .collect_vec();
+    }
+    Some(counts.into_iter().reduce(lcm).unwrap() as u64)
 }
 type Node<'a> = (&'a str, (&'a str, &'a str));
 enum Instruction {
@@ -95,6 +130,6 @@ mod tests {
     #[test]
     fn test_part_two() {
         let result = part_two(&advent_of_code::template::read_example("08b"));
-        assert_eq!(result, None);
+        assert_eq!(result, Some(6));
     }
 }
