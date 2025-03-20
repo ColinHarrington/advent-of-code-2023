@@ -24,7 +24,6 @@ pub fn part_one(input: &str) -> Option<u64> {
 }
 
 pub fn part_two(input: &str) -> Option<u64> {
-    //This one is going to be a LCM, Modulo solution -> Brute force would take FOREVER!!
     let (instructions, nodes) = read(input);
     let node_map: BTreeMap<&str, (&str, &str)> = BTreeMap::from_iter(nodes);
     let starts = node_map
@@ -34,8 +33,8 @@ pub fn part_two(input: &str) -> Option<u64> {
             false => None,
         })
         .collect_vec();
-    let mut heads = starts.clone(); //iter().map(|&s| (s, s)).collect_vec();
-    let mut counts: Vec<usize> = vec![]; //HashMap<&str, (&str, usize)> = HashMap::new();
+    let mut heads = starts.clone();
+    let mut counts: Vec<usize> = vec![];
     let mut itr = instructions.iter().cycle();
     let mut steps: usize = 0;
 
