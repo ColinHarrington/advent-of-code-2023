@@ -46,13 +46,6 @@ fn map_ranges(ranges: Vec<NumRange>, layer: Vec<Translation>) -> Vec<NumRange> {
     mapped
         .into_iter()
         .sorted()
-        .coalesce(|a, b| match a.overlaps(&b) {
-            true => Ok(NumRange {
-                start: a.start.min(b.start),
-                end: a.end.max(b.end),
-            }),
-            false => Err((a, b)),
-        })
         .collect_vec()
 }
 
