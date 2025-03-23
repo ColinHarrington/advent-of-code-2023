@@ -43,10 +43,7 @@ fn map_ranges(ranges: Vec<NumRange>, layer: Vec<Translation>) -> Vec<NumRange> {
             }
         }
     }
-    mapped
-        .into_iter()
-        .sorted()
-        .collect_vec()
+    mapped.into_iter().sorted().collect_vec()
 }
 
 #[derive(Debug, PartialEq, Eq, Copy, Clone)]
@@ -166,6 +163,7 @@ impl From<(Vec<i64>, MappingLayers)> for Almanac {
         Self { seeds, layers }
     }
 }
+
 mod parse {
     use crate::{Almanac, Mapping};
     use nom::bytes::complete::tag;
