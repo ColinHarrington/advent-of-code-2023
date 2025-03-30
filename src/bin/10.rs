@@ -1,20 +1,90 @@
 use crate::Direction::{East, North, South, West};
+use crate::PipeType::{
+    BendNorthEast, BendNorthWest, BendSouthEast, BendSouthWest, Horizontal, Vertical,
+};
+use crate::Tile::{Ground, Pipe, Start};
 use itertools::Itertools;
 use std::collections::HashMap;
-use std::fmt::Display;
+use std::fmt::{Debug, Display, Formatter};
 
 advent_of_code::solution!(10);
 
 pub fn part_one(input: &str) -> Option<u64> {
-    let maze = PipeMaze::from_input(input);
-    [North, South, East, West]
-        .into_iter()
-        .find_map(|direction| maze.find_loop(direction))
-        .map(|points| ((points.len() + 1) / 2) as u64)
+    Some(PipeMaze::from_input(input).loop_length() / 2)
 }
 
-pub fn part_two(_input: &str) -> Option<u64> {
-    None
+pub fn part_two(input: &str) -> Option<u64> {
+    let maze = PipeMaze::from_input(input);
+    let loop_map = maze.loop_map();
+
+    Some(
+        maze.tiles
+            .iter()
+            .enumerate()
+            .map(|(row, tiles)| {
+                tiles
+                    .iter()
+                    .enumerate()
+                    .fold(
+                        (0usize, false, None),
+                        |(area, inside, prior), (col, _)| match loop_map.get(&Point { row, col }) {
+                            None => (if inside { area + 1 } else { area }, inside, prior),
+                            Some(tile) => match *tile {
+                                Pipe(Horizontal) => (area, inside, prior),
+                                Pipe(Vertical) => (area, !inside, None),
+                                Pipe(pipe_type) => match (prior, pipe_type) {
+                                    (Some(BendNorthEast), BendSouthWest) => (area, !inside, None),
+                                    (Some(BendSouthEast), BendNorthWest) => (area, !inside, None),
+                                    _ => (area, inside, Some(pipe_type)),
+                                },
+                                _ => panic!("Invalid state"),
+                            },
+                        },
+                    )
+                    .0
+            })
+            .sum::<usize>() as u64,
+    )
+}
+
+fn start_mapping(start: &Point, other: &Point) -> Direction {
+    if start.row < other.row {
+        South
+    } else if start.row > other.row {
+        North
+    } else if start.col > other.col {
+        West
+    } else {
+        East
+    }
+}
+fn determine_starting_pipe(pipe_loop: &[Point]) -> Tile {
+    let start = pipe_loop.first().unwrap();
+    match (
+        start_mapping(start, pipe_loop.get(1).unwrap()),
+        start_mapping(start, pipe_loop.last().unwrap()),
+    ) {
+        (North, South) | (South, North) => Pipe(Vertical),
+        (East, West) | (West, East) => Pipe(Horizontal),
+        (North, East) | (East, North) => Pipe(BendNorthEast),
+        (North, West) | (West, North) => Pipe(BendNorthWest),
+        (South, East) | (East, South) => Pipe(BendSouthEast),
+        (South, West) | (West, South) => Pipe(BendSouthWest),
+        _ => panic!("Invalid combination"),
+    }
+}
+#[derive(Clone)]
+struct PipeCombo(PipeType, PipeType);
+impl From<(PipeType, PipeType)> for PipeCombo {
+    fn from((a, b): (PipeType, PipeType)) -> Self {
+        PipeCombo(a, b)
+    }
+}
+
+impl PartialEq<Self> for PipeCombo {
+    fn eq(&self, other: &Self) -> bool {
+        (self.0 == other.0 || self.0 == other.1) && (self.1 == other.0 || self.1 == other.1)
+    }
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -25,7 +95,7 @@ enum Direction {
     West,
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, Eq, PartialEq)]
 enum PipeType {
     Vertical,      // │
     Horizontal,    // ─
@@ -34,45 +104,43 @@ enum PipeType {
     BendSouthEast, // ┌
     BendSouthWest, // ┐
 }
-
 impl Display for PipeType {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(
             f,
             "{}",
             match self {
-                PipeType::Vertical => '│',
-                PipeType::Horizontal => '─',
-                PipeType::BendNorthEast => '└',
-                PipeType::BendNorthWest => '┘',
-                PipeType::BendSouthEast => '┌',
-                PipeType::BendSouthWest => '┐',
+                Vertical => '│',
+                Horizontal => '─',
+                BendNorthEast => '└',
+                BendNorthWest => '┘',
+                BendSouthEast => '┌',
+                BendSouthWest => '┐',
             }
         )
     }
 }
 
-// (incoming, outgoing)
 impl PipeType {
     fn outgoing_direction(&self, incoming: Direction) -> Result<Direction, String> {
         match (self, incoming) {
-            (PipeType::Vertical, North) => Ok(North),
-            (PipeType::Vertical, South) => Ok(South),
-            (PipeType::Horizontal, East) => Ok(East),
-            (PipeType::Horizontal, West) => Ok(West),
-            (PipeType::BendNorthEast, South) => Ok(East),
-            (PipeType::BendNorthEast, West) => Ok(North),
-            (PipeType::BendNorthWest, South) => Ok(West),
-            (PipeType::BendNorthWest, East) => Ok(North),
-            (PipeType::BendSouthEast, North) => Ok(East),
-            (PipeType::BendSouthEast, West) => Ok(South),
-            (PipeType::BendSouthWest, East) => Ok(South),
-            (PipeType::BendSouthWest, North) => Ok(West),
+            (Vertical, North) => Ok(North),
+            (Vertical, South) => Ok(South),
+            (Horizontal, East) => Ok(East),
+            (Horizontal, West) => Ok(West),
+            (BendNorthEast, South) => Ok(East),
+            (BendNorthEast, West) => Ok(North),
+            (BendNorthWest, South) => Ok(West),
+            (BendNorthWest, East) => Ok(North),
+            (BendSouthEast, North) => Ok(East),
+            (BendSouthEast, West) => Ok(South),
+            (BendSouthWest, East) => Ok(South),
+            (BendSouthWest, North) => Ok(West),
             _ => Err("Invalid Direction".to_string()),
         }
     }
 }
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Copy)]
 enum Tile {
     Start,
     Ground,
@@ -81,15 +149,15 @@ enum Tile {
 impl Tile {
     fn accepts(&self, direction: Direction) -> bool {
         match self {
-            Tile::Start => true,
-            Tile::Ground => false,
-            Tile::Pipe(pipe_type) => match pipe_type {
-                PipeType::Vertical => matches!(direction, North | South),
-                PipeType::Horizontal => matches!(direction, East | West),
-                PipeType::BendNorthEast => matches!(direction, South | West),
-                PipeType::BendNorthWest => matches!(direction, South | East),
-                PipeType::BendSouthEast => matches!(direction, North | West),
-                PipeType::BendSouthWest => matches!(direction, North | East),
+            Start => true,
+            Ground => false,
+            Pipe(pipe_type) => match pipe_type {
+                Vertical => matches!(direction, North | South),
+                Horizontal => matches!(direction, East | West),
+                BendNorthEast => matches!(direction, South | West),
+                BendNorthWest => matches!(direction, South | East),
+                BendSouthEast => matches!(direction, North | West),
+                BendSouthWest => matches!(direction, North | East),
             },
         }
     }
@@ -97,15 +165,25 @@ impl Tile {
 impl From<char> for Tile {
     fn from(c: char) -> Tile {
         match c {
-            'S' => Tile::Start,
-            '.' => Tile::Ground,
-            '|' => Tile::Pipe(PipeType::Vertical),
-            '-' => Tile::Pipe(PipeType::Horizontal),
-            'L' => Tile::Pipe(PipeType::BendNorthEast),
-            'J' => Tile::Pipe(PipeType::BendNorthWest),
-            '7' => Tile::Pipe(PipeType::BendSouthWest),
-            'F' => Tile::Pipe(PipeType::BendSouthEast),
+            'S' => Start,
+            '.' => Ground,
+            '|' => Pipe(Vertical),
+            '-' => Pipe(Horizontal),
+            'L' => Pipe(BendNorthEast),
+            'J' => Pipe(BendNorthWest),
+            '7' => Pipe(BendSouthWest),
+            'F' => Pipe(BendSouthEast),
+            'O' | 'I' => Ground, //Testing examples!
             _ => panic!("Not a tile."),
+        }
+    }
+}
+impl Display for Tile {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Start => write!(f, "S"),
+            Ground => write!(f, "."),
+            Pipe(pipe_type) => std::fmt::Display::fmt(&pipe_type, f),
         }
     }
 }
@@ -129,13 +207,23 @@ impl Point {
         }
     }
 }
+impl Display for Point {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        write!(f, "({}, {})", self.row, self.col)
+    }
+}
 
 struct PipeMaze {
+    tiles: Vec<Vec<Tile>>,
     data: HashMap<Point, Tile>,
     start: Point,
 }
 impl PipeMaze {
     fn from_input(input: &str) -> Self {
+        let tiles = input
+            .lines()
+            .map(|line| line.chars().map(Tile::from).collect_vec())
+            .collect_vec();
         let data: HashMap<Point, Tile> =
             HashMap::from_iter(input.trim().lines().enumerate().flat_map(|(row, line)| {
                 line.chars()
@@ -146,17 +234,42 @@ impl PipeMaze {
         let start = data
             .iter()
             .find_map(|(&point, tile)| match tile {
-                Tile::Start => Some(point),
+                Start => Some(point),
                 _ => None,
             })
             .unwrap();
-        PipeMaze { data, start }
+        PipeMaze { tiles, data, start }
+    }
+
+    fn loop_length(&self) -> u64 {
+        self.load_loop().len() as u64
+    }
+
+    fn loop_map(&self) -> HashMap<Point, Tile> {
+        let pipe_loop = self.load_loop();
+        let start = determine_starting_pipe(&pipe_loop);
+        HashMap::from_iter(pipe_loop.into_iter().map(|p| {
+            (
+                p,
+                match *self.data.get(&p).unwrap() {
+                    Start => start,
+                    tile => tile,
+                },
+            )
+        }))
+    }
+
+    fn load_loop(&self) -> Vec<Point> {
+        [North, South, East, West]
+            .into_iter()
+            .find_map(|direction| self.find_loop(direction))
+            .unwrap()
     }
 
     fn find_loop(&self, direction: Direction) -> Option<Vec<Point>> {
-        let mut path = vec![];
-        let pipe_walker = self.walker(direction);
-        for point in pipe_walker {
+        let mut path = vec![self.start];
+        // let pipe_walker = self.iter(direction);
+        for point in self.iter(direction) {
             if point == self.start {
                 return Some(path);
             }
@@ -165,12 +278,24 @@ impl PipeMaze {
         None
     }
 
-    fn walker(&self, direction: Direction) -> PipeWalker {
+    fn iter(&self, direction: Direction) -> PipeWalker {
         PipeWalker {
             current: self.start,
             direction,
             maze: self,
         }
+    }
+}
+impl Display for PipeMaze {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(
+            f,
+            "{}",
+            self.tiles
+                .iter()
+                .map(|row| row.iter().map(Tile::to_string).join(""))
+                .join("\n")
+        )
     }
 }
 
@@ -189,9 +314,9 @@ impl Iterator for PipeWalker<'_> {
                 self.current = point;
                 match self.maze.data.get(&self.current) {
                     Some(tile) => match tile {
-                        Tile::Ground => None,
-                        Tile::Start => Some(self.current),
-                        Tile::Pipe(pipe_type) => match tile.accepts(self.direction) {
+                        Ground => None,
+                        Start => Some(self.current),
+                        Pipe(pipe_type) => match tile.accepts(self.direction) {
                             true => match pipe_type.outgoing_direction(self.direction) {
                                 Ok(outgoing_direction) => {
                                     self.direction = outgoing_direction;
@@ -226,8 +351,31 @@ mod tests {
     }
 
     #[test]
-    fn test_part_two() {
-        let result = part_two(&advent_of_code::template::read_file("examples", DAY));
-        assert_eq!(result, None);
+    fn test_part_two_a() {
+        let result = part_two(&advent_of_code::template::read_example("10"));
+        assert_eq!(result, Some(1));
+    }
+
+    #[test]
+    fn test_part_two_c() {
+        let result = part_two(&advent_of_code::template::read_example("10c"));
+        assert_eq!(result, Some(4));
+    }
+
+    #[test]
+    fn test_part_two_d() {
+        let result = part_two(&advent_of_code::template::read_example("10d"));
+        assert_eq!(result, Some(4));
+    }
+    #[test]
+    fn test_part_two_e() {
+        let result = part_two(&advent_of_code::template::read_example("10e"));
+        assert_eq!(result, Some(8));
+    }
+
+    #[test]
+    fn test_part_two_f() {
+        let result = part_two(&advent_of_code::template::read_example("10f"));
+        assert_eq!(result, Some(10));
     }
 }
