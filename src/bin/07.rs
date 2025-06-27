@@ -168,7 +168,7 @@ impl FromStr for Card {
             "4" => Ok(Card::Four),
             "3" => Ok(Card::Three),
             "2" => Ok(Card::Two),
-            _ => Err(format!("Invalid card {}", s)),
+            _ => Err(format!("Invalid card {s}")),
         }
     }
 }
