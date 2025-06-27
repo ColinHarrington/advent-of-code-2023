@@ -171,7 +171,7 @@ mod child_commands {
             .split(" samples)")
             .next()?
             .split('(')
-            .last()?
+            .next_back()?
             .split('@')
             .next()?
             .trim();
