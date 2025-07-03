@@ -1,4 +1,3 @@
-use crate::Direction::{East, North, South, West};
 use itertools::Itertools;
 use std::cmp::Ordering;
 use std::fmt::{Display, Formatter};
@@ -6,34 +5,29 @@ use std::fmt::{Display, Formatter};
 advent_of_code::solution!(14);
 
 pub fn part_one(input: &str) -> Option<usize> {
-    let platform = Platform {
-        data: input
+    Some(score(tilt_north(
+        input
             .lines()
             .map(|line| line.chars().collect_vec())
             .collect_vec(),
-        direction: West,
-    };
-    Some(platform.tilt_north().score())
+    )))
 }
 
 pub fn part_two(input: &str) -> Option<usize> {
-    let platform = Platform {
+    let mut platform = Platform {
         data: input
             .lines()
             .map(|line| line.chars().collect_vec())
             .collect_vec(),
-        direction: West,
     };
-    let p = platform.tilt_north().tilt_north().tilt_north().tilt_north();
-    println!("{p}");
-    // let p = cycle(platform).score();
+    println!("{platform}");
+    platform.cycle().cycle().cycle();
     None
 }
 
 #[derive(Debug, Clone, Hash, PartialEq, Eq)]
 struct Platform {
     data: Vec<Vec<char>>,
-    direction: Direction,
 }
 impl Platform {
     fn from_input(input: &str) -> Self {
@@ -44,15 +38,10 @@ impl Platform {
         let size = data.len();
         Platform {
             data: (0..size)
-                .map(|row| {
-                    (0..size)
-                        .map(|col| data[col][size - 1 - row])
-                        .collect_vec()
-                })
+                .map(|row| (0..size).map(|col| data[col][size - 1 - row]).collect_vec())
                 .collect(),
-            direction:North
         }
-    } 
+    }
     fn score(&self) -> usize {
         let size = self.data.len();
         self.data
@@ -62,50 +51,91 @@ impl Platform {
                 line.iter()
                     .enumerate()
                     .filter_map(move |(col, ch)| match ch {
-                        'O' => match self.direction {
-                            // Some(size - col),
-                            North => Some(size - col),
-                            East => Some(size - row),
-                            _ => unimplemented!("Never gonna give you up"),
-                        },
+                        'O' => Some(size - row),
                         _ => None,
                     })
             })
             .sum::<usize>()
     }
-    
+
     /// Each cycle tilts the platform four times so that the rounded rocks roll north, then west, then south, then east.
-    fn cycle(&self) -> Platform {
+    fn cycle(&mut self) -> Platform {
+        self.tilt_north();
+        // println!("{self}");
+        self.tilt_west();
+        // println!("{self}");
+        self.tilt_south();
+        // println!("{self}");
+        self.tilt_east();
+        println!("{self}");
         self.clone()
     }
     fn rotate_right(&mut self) {
         let size = self.data.len();
-        self.data =  (0..size)
-                .map(|row| {
-                    (0..size)
-                        .map(|col| self.data[col][size - 1 - row])
-                        .collect_vec()
-                })
-                .collect();
-        self.direction = self.direction.rotate_right();
+        self.data = (0..size)
+            .map(|row| {
+                (0..size)
+                    .map(|col| self.data[col][size - 1 - row])
+                    .collect_vec()
+            })
+            .collect();
     }
 
-    fn tilt_north(&self) -> Platform {
+    fn tilt_north(&mut self) {
         let size = self.data.len();
-        let p = Platform {
-            data: (0..size)
-                .map(|row| {
-                    roll(
-                        (0..size)
-                            .map(|col| self.data[col][size - 1 - row])
-                            .collect_vec(),
-                    )
-                })
-                .collect(),
-            direction: self.direction.rotate_right(),
-        };
-        println!("{p}");
-        p
+
+        let columns = (0..size)
+            .map(|col| roll((0..size).map(|row| self.data[row][col]).collect_vec()))
+            .collect_vec();
+        columns.into_iter().enumerate().for_each(|(col, column)| {
+            column
+                .into_iter()
+                .enumerate()
+                .for_each(|(row, ch)| self.data[row][col] = ch)
+        })
+    }
+
+    fn tilt_east(&mut self) {
+        let size = self.data.len();
+        let columns = (0..size)
+            .map(|row| roll(self.data[row].clone().into_iter().rev().collect_vec()))
+            .collect_vec();
+        columns.into_iter().enumerate().for_each(|(row, column)| {
+            column
+                .into_iter()
+                .enumerate()
+                .for_each(|(col, ch)| self.data[row][size - 1 - col] = ch)
+        })
+    }
+
+    fn tilt_south(&mut self) {
+        let size = self.data.len();
+        let columns = (0..size)
+            .map(|col| {
+                roll(
+                    (0..size)
+                        .map(|row| self.data[size - 1 - row][col])
+                        .collect_vec(),
+                )
+            })
+            .collect_vec();
+        columns.into_iter().enumerate().for_each(|(col, column)| {
+            column
+                .into_iter()
+                .enumerate()
+                .for_each(|(row, ch)| self.data[size - 1 - row][col] = ch)
+        })
+    }
+    fn tilt_west(&mut self) {
+        let size = self.data.len();
+        let columns = (0..size)
+            .map(|row| roll(self.data[row].clone()))
+            .collect_vec();
+        columns.into_iter().enumerate().for_each(|(row, line)| {
+            line.into_iter()
+                .enumerate()
+                .for_each(|(col, ch)| self.data[row][col] = ch)
+        })
     }
 }
 impl Display for Platform {
@@ -113,35 +143,21 @@ impl Display for Platform {
         let lines: Vec<String> = self
             .data
             .iter()
-            .map(|row| row.iter().join(" "))
+            .map(|row| row.iter().join(""))
             .collect_vec();
-        writeln!(f, "{:?}\n{}\n", self.direction, lines.join("\n"))
+        writeln!(f, "{}\n", lines.join("\n"))
     }
 }
-#[derive(Debug, Clone, Hash, PartialEq, Eq)]
-enum Direction {
-    North,
-    East,
-    South,
-    West,
-}
-impl Direction {
-    fn rotate_right(&self) -> Direction {
-        match self {
-            North => East,
-            East => South,
-            South => West,
-            West => North,
-        }
-    }
-    fn rotate(&self) -> Direction {
-        match self {
-            North => East,
-            East => South,
-            South => West,
-            West => North,
-        }
-    }
+
+fn tilt_north(data: Vec<Vec<char>>) -> Vec<Vec<char>> {
+    let size = data.len();
+    let columns = (0..size)
+        .map(|col| roll((0..size).map(|row| data[row][col]).collect_vec()))
+        .collect_vec();
+
+    (0..size)
+        .map(|row| (0..size).map(|col| columns[col][row]).collect_vec())
+        .collect()
 }
 
 fn rotate_right(platform: Platform) -> Platform {
@@ -156,10 +172,7 @@ fn rotate_right(platform: Platform) -> Platform {
         })
         .collect();
 
-    Platform {
-        data,
-        direction: platform.direction.rotate_right(),
-    }
+    Platform { data }
 }
 fn roll(line: Vec<char>) -> Vec<char> {
     line.split_inclusive(|ch| *ch == '#')
@@ -185,7 +198,22 @@ fn stone_sort(a: &&char, b: &&char) -> Ordering {
         _ => Ordering::Equal,
     }
 }
+fn score(data: Vec<Vec<char>>) -> usize {
+    let size = data.len();
+    data.iter()
+        .enumerate()
+        .flat_map(|(row, line)| {
+            line.iter()
+                .enumerate()
+                .filter_map(move |(col, ch)| match ch {
+                    'O' => Some(size - row),
+                    _ => None,
+                })
+        })
+        .sum::<usize>()
+}
 
+// fn north_itr(size:usize) ->
 #[cfg(test)]
 mod tests {
     use super::*;
