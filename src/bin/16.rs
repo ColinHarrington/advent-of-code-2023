@@ -13,6 +13,9 @@ pub fn part_two(_input: &str) -> Option<u32> {
     None
 }
 
+type Position = (usize, usize);
+type Light = (usize, usize, Heading);
+
 #[derive(Ord, PartialOrd, Eq, PartialEq, Copy, Clone, Debug)]
 enum Heading {
     Up,
@@ -46,7 +49,7 @@ impl Device {
     }
 }
 struct Grid {
-    devices: HashMap<(usize, usize), Device>,
+    devices: HashMap<Position, Device>,
     size: usize,
 }
 impl Grid {
@@ -55,7 +58,7 @@ impl Grid {
         let size = lines.len();
         let width = lines.first().unwrap_or(&"").len();
         assert_eq!(size, width,);
-        let devices: HashMap<(usize, usize), Device> =
+        let devices: HashMap<Position, Device> =
             HashMap::from_iter(lines.into_iter().enumerate().flat_map(|(row, line)| {
                 line.chars()
                     .enumerate()
@@ -71,12 +74,11 @@ impl Grid {
         Grid { devices, size }
     }
 
-    fn illuminate(&self, start: (usize, usize, Heading)) -> usize {
-        let mut word: BTreeSet<(usize, usize, Heading)> = BTreeSet::new();
-        let mut beams: VecDeque<(usize, usize, Heading)> = VecDeque::from(vec![start]);
+    fn illuminate(&self, start: Light) -> usize {
+        let mut word: BTreeSet<Light> = BTreeSet::new();
+        let mut beams: VecDeque<Light> = VecDeque::from(vec![start]);
 
         while let Some((row, col, heading)) = beams.pop_front() {
-            // println!("visited ({row}, {col}) => {heading:?}");
             if word.insert((row, col, heading)) {
                 for beam in self
                     .devices
@@ -90,7 +92,6 @@ impl Grid {
                         Left => (Some(row), col.checked_sub(1), heading),
                         Right => (Some(row), col.checked_add(1), heading),
                     })
-                    // .inspect(|(row, col, heading)|println!("({row:?}, {col:?}) => {heading:?})"))
                     .filter_map(|entry| match entry {
                         (Some(row), Some(col), heading) if row < self.size && col < self.size => {
                             Some((row, col, heading))
@@ -108,7 +109,7 @@ impl Grid {
             .count()
     }
 }
-// fn shine(device: Device, ) ->
+
 #[cfg(test)]
 mod tests {
     use super::*;
