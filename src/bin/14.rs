@@ -1,6 +1,5 @@
 use crate::Direction::{East, North, South, West};
 use itertools::Itertools;
-use std::cmp::Ordering;
 use std::collections::{HashMap, VecDeque};
 use std::hash::Hash;
 
