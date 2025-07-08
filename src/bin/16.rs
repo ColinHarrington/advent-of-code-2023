@@ -12,11 +12,10 @@ pub fn part_one(input: &str) -> Option<usize> {
 pub fn part_two(input: &str) -> Option<usize> {
     let grid = Grid::from_input(input);
     let last = grid.size - 1;
-    (0..=last).
-        flat_map(|i|vec![(last, i, Up),(0, i, Down),(i, last, Left),(i, 0, Right)])
-        .map(|start|grid.illuminate(start))
+    (0..=last)
+        .flat_map(|i| vec![(last, i, Up), (0, i, Down), (i, last, Left), (i, 0, Right)])
+        .map(|start| grid.illuminate(start))
         .max()
-    
 }
 
 type Position = (usize, usize);
