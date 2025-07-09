@@ -5,37 +5,21 @@ use pathfinding::directed::astar::astar;
 advent_of_code::solution!(17);
 
 pub fn part_one(input: &str) -> Option<usize> {
-    let crucible = Crucible {
-        data: input
-            .trim()
-            .lines()
-            .map(|line| {
-                line.chars()
-                    .map(|c| c.to_digit(10).unwrap() as usize)
-                    .collect_vec()
-            })
-            .collect_vec(),
-    };
+    let crucible = Crucible::from_input(input);
 
     let end = crucible.end_position();
 
     vec![Right, Down]
         .into_iter()
         .map(|heading| Node {
-            position: Position::from((0, 0)),
+            position: Position { row: 0, col: 0 },
             heading,
             count: 1,
         })
         .filter_map(|start| {
             astar(
                 &start,
-                |node| {
-                    crucible
-                        .successors(node)
-                        .into_iter()
-                        .filter(|(node, _)| node.count <= 3)
-                        .collect_vec()
-                },
+                |node| crucible.successors(node, 0, 3),
                 |node| (end.row - node.position.row + end.col - node.position.col) * 2,
                 |node| node.position == end,
             )
@@ -45,24 +29,62 @@ pub fn part_one(input: &str) -> Option<usize> {
         .min()
 }
 
-pub fn part_two(_input: &str) -> Option<usize> {
-    None
+pub fn part_two(input: &str) -> Option<usize> {
+    let crucible = Crucible::from_input(input);
+
+    let end = crucible.end_position();
+
+    vec![Right, Down]
+        .into_iter()
+        .map(|heading| Node {
+            position: Position { row: 0, col: 0 },
+            heading,
+            count: 1,
+        })
+        .filter_map(|start| {
+            astar(
+                &start,
+                |node| crucible.successors(node, 4, 10),
+                |node| (end.row - node.position.row + end.col - node.position.col) * 2,
+                |node| node.position == end,
+            )
+        })
+        // .inspect(|(path, _)| print_path(input, path))
+        .map(|(_path, heat)| heat)
+        .min()
 }
 
 struct Crucible {
     data: Vec<Vec<usize>>,
 }
 impl Crucible {
+    fn from_input(input: &str) -> Self {
+        Crucible {
+            data: input
+                .trim()
+                .lines()
+                .map(|line| {
+                    line.chars()
+                        .map(|c| c.to_digit(10).unwrap() as usize)
+                        .collect_vec()
+                })
+                .collect_vec(),
+        }
+    }
     fn end_position(&self) -> Position {
         Position::from((self.data.len() - 1, self.data.len() - 1))
     }
     fn heat(&self, position: Position) -> usize {
         self.data[position.row][position.col]
     }
-    fn successors(&self, node: &Node) -> Vec<(Node, usize)> {
-        let max = self.data.len() - 1;
-        node.successors(max)
+    fn successors(&self, node: &Node, min: usize, max: usize) -> Vec<(Node, usize)> {
+        let bounds = self.data.len() - 1;
+        node.successors(bounds)
             .into_iter()
+            .filter(|n| match n.heading == node.heading {
+                true => node.count < max,
+                false => node.count >= min,
+            })
             .map(|node| (node, self.heat(node.position)))
             .collect()
     }
@@ -130,11 +152,11 @@ struct Node {
 }
 
 impl Node {
-    fn successors(&self, max: usize) -> Vec<Node> {
+    fn successors(&self, bounds: usize) -> Vec<Node> {
         vec![self.turn_right(), self.turn_left(), self.straight()]
             .into_iter()
             .filter_map(|node| match node {
-                Some(node) if node.position.in_bounds(max) => Some(node),
+                Some(node) if node.position.in_bounds(bounds) => Some(node),
                 _ => None,
             })
             .collect_vec()
@@ -222,6 +244,6 @@ mod tests {
     #[test]
     fn test_part_two() {
         let result = part_two(&advent_of_code::template::read_file("examples", DAY));
-        assert_eq!(result, None);
+        assert_eq!(result, Some(94));
     }
 }
