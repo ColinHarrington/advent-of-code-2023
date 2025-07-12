@@ -90,7 +90,7 @@ impl ConditionRecord {
             },
             Ordering::Less => {
                 match !self.springs[i..group_end].iter().contains(&b'.')  // No operational springs in group
-                && self.springs[group_end] == b'#'
+                && self.springs[group_end] != b'#'
             {
                 true => self.count(dp, group_end + 1, j + 1),
                 false => 0,
