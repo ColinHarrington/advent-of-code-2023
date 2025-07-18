@@ -138,7 +138,6 @@ pub fn part_two(input: &str) -> Option<usize> {
                 None => {}
                 Some(m) => match m.module_type {
                     ModuleType::Broadcaster => {
-                        //(Some(Pulse::Low), &m.downstream)
                         for output in m.downstream.iter() {
                             queue.push_back((output, Pulse::Low));
                         }
@@ -195,7 +194,6 @@ pub fn part_two(input: &str) -> Option<usize> {
         }
         iteration += 1;
     }
-    // println!("cycles: {cycles:?}");
     Some(cycles.into_iter().reduce(lcm).unwrap_or(0))
 }
 
@@ -225,12 +223,9 @@ fn gcd(first: usize, second: usize) -> usize {
 fn upstream_conjunctions(start: &str, modules: &HashMap<String, ModuleNode>) -> Vec<String> {
     let mut dependencies: BTreeSet<String> = BTreeSet::new();
     let mut upstream: Vec<String> = vec![];
-    //Get node. recursively get all upstream from there that we haven't seen.
     let mut queue: VecDeque<String> = VecDeque::from([start.to_string()]);
     while let Some(current) = queue.pop_front() {
-        // println!("  current: {current}");
         if let Some(node) = modules.get(&current) {
-            // println!("    node: {node:?}");
             if node.module_type == ModuleType::Conjunction {
                 upstream.push(current.clone());
             }
@@ -241,7 +236,6 @@ fn upstream_conjunctions(start: &str, modules: &HashMap<String, ModuleNode>) -> 
             }
         }
     }
-    // dependencies
     upstream
 }
 
