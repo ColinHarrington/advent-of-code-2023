@@ -14,7 +14,7 @@ struct BrickStack {
 }
 impl BrickStack {
     fn from_bricks(bricks: Vec<Brick>) -> BrickStack {
-        let mut stack = BTreeSet::from_iter(bricks.clone());
+        let mut stack: BTreeSet<Brick> = BTreeSet::new();
         let len = bricks.len();
         let mut under: Vec<Vec<usize>> = vec![vec![]; len];
         let mut over: Vec<Vec<usize>> = vec![vec![]; len];
@@ -25,30 +25,23 @@ impl BrickStack {
                 y: brick.y.clone(),
                 z: 0..=(brick.z.start() - 1),
             };
-
-            let supporting = stack
+            let mut new_z = 0u32;
+            under[brick.id] = stack
                 .range(..=bounding_box.clone())
                 .rev()
                 .filter(|b| b.intersects(&bounding_box))
-                .scan(None, |level, b| match level {
-                    None => {
-                        *level = Some(b.z.end());
-                        Some(b.clone())
+                .take_while(|b| match new_z {
+                    0 => {
+                        new_z = *b.z.end();
+                        true
                     }
-                    Some(l) if *l == b.z.end() => Some(b.clone()),
-                    _ => None,
+                    l if l == *b.z.end() => true,
+                    _ => false,
                 })
+                .map(|b| b.id)
+                .inspect(|id| over[*id].push(brick.id))
                 .collect_vec();
-
-            let dropped = brick.drop_z(supporting.first().map(|b| *b.z.end()).unwrap_or(0) + 1);
-            if *brick != dropped {
-                stack.remove(brick);
-                stack.insert(dropped.clone());
-            }
-            under[dropped.id] = supporting.iter().map(|b| b.id).collect_vec();
-            for b in supporting {
-                over[b.id].push(brick.id);
-            }
+            stack.insert(brick.drop_z(new_z + 1));
         }
         BrickStack { stack, over, under }
     }
